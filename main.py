@@ -6,7 +6,7 @@ import threading
 
 from user import User
 from notifications import Notifications
-from calculateFocalandHeight import calculate
+from calibration import calculate
 
 config = ConfigParser()
 
@@ -98,9 +98,6 @@ def runMain():
     cv2.destroyAllWindows()
 
 
-runningThread = threading.Thread(target=runMain)
-
-
 def runCalibration():
     focalLength, webcamHeight = calculate()
 
@@ -126,8 +123,6 @@ def runCalibration():
 
     calibrationWindowConfirmation.mainloop()
 
-
-runCalibrationThread = threading.Thread(target=runCalibration)
 
 window = tk.Tk()
 window.configure(background="white")
