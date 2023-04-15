@@ -13,7 +13,7 @@ def Average(lst):
 
 
 def calculate(webcamIndex):
-    cap = cv2.VideoCapture(webcam, cv2.CAP_DSHOW)
+    cap = cv2.VideoCapture(webcamIndex, cv2.CAP_DSHOW)
     detector = FaceMeshDetector(maxFaces=1)
     focalLengths = []
     heights = []
