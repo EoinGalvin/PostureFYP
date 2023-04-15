@@ -12,8 +12,8 @@ def Average(lst):
     return sum(lst) / len(lst)
 
 
-def calculate():
-    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+def calculate(webcamIndex):
+    cap = cv2.VideoCapture(webcam, cv2.CAP_DSHOW)
     detector = FaceMeshDetector(maxFaces=1)
     focalLengths = []
     heights = []

@@ -10,6 +10,23 @@ from calibration import calculate
 
 config = ConfigParser()
 
+webcamIndex = 0
+
+
+def returnCameraIndexes():
+    # checks the first 10 indexes.
+    index = 0
+    arr = []
+    i = 10
+    while i > 0:
+        cap = cv2.VideoCapture(index, cv2.CAP_DSHOW)
+        if cap.read()[0]:
+            arr.append(index)
+            cap.release()
+        index += 1
+        i -= 1
+    return arr
+
 
 def mainThreadRunner():
     runningThread = threading.Thread(target=runMain)
@@ -43,11 +60,12 @@ def saveConfig(heightMax, heightMin, distanceMax, distanceMin, cOffsetMax, eyeAn
 
 
 def runMain():
+    
     config.read('config.ini')
     focalLength = int(config.get('main', 'FOCAL_LENGTH'))
     webcamYPos = float(config.get('main', 'WEBCAM_Y_POS'))
 
-    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+    cap = cv2.VideoCapture(webcamIndex, cv2.CAP_DSHOW)
     cap.set(cv2.CAP_PROP_FPS, 15)
 
     detector = FaceMeshDetector(maxFaces=1)
@@ -99,7 +117,7 @@ def runMain():
 
 
 def runCalibration():
-    focalLength, webcamHeight = calculate()
+    focalLength, webcamHeight = calculate(webcamIndex)
 
     config.read('config.ini')
     config.set('main', 'FOCAL_LENGTH', str(round(focalLength)))
@@ -124,74 +142,79 @@ def runCalibration():
     calibrationWindowConfirmation.mainloop()
 
 
+def setWebcam():
+    global webcamIndex
+    webcamIndex = clicked.get()
+
+
 window = tk.Tk()
 window.configure(background="white")
-window.geometry("466x346")
+window.geometry("466x345")
 window.title("PostureChecker")
 
 # ---------------------------------------------------------------------
 
-calibrationFrame = tk.Frame(window, background="white", highlightbackground="black", highlightthickness=2)
+calibrationFrame = tk.Frame(window, background="#87b5ff", highlightbackground="black", highlightthickness=2)
 
 pleaseWaitLabel = tk.Label(calibrationFrame,
                            text="Calibrate Webcam",
                            font=('Arial', '14'),
-                           background="white")
+                           background="#87b5ff")
 pleaseWaitLabel.pack()
 
 instructionsLabel1 = tk.Label(calibrationFrame,
                               text="Please position yourself directly in-front of the camera,",
                               font=('Arial', '14'),
-                              background="white")
+                              background="#87b5ff")
 instructionsLabel1.pack()
 
 instructionsLabel2 = tk.Label(calibrationFrame,
                               text="50cm away for the duration of the configuration.",
                               font=('Arial', '14'),
-                              background="white")
+                              background="#87b5ff")
 instructionsLabel2.pack()
 
-calibrateButton = tk.Button(calibrationFrame, text="Calibrate", font=('Arial', '14'),
+calibrateButton = tk.Button(calibrationFrame, text="Calibrate", font=('Arial', '14'), bg="#183869", fg="white",
                             command=lambda: calibrationThreadRunner())
 calibrateButton.pack()
 
-calibrationFrame.place(x=0, y=219)
+calibrationFrame.place(x=0, y=218)
 # ---------------------------------------------------------------------
-configurationFrame = tk.Frame(window, width=220, height=220, background="white", highlightbackground="black",
+configurationFrame = tk.Frame(window, width=220, height=220, background="#87b5ff", highlightbackground="black",
                               highlightthickness=2)
 
 heightMinFrame = tk.Frame(configurationFrame)
-heightMinLabel = tk.Label(heightMinFrame, text="Min Height:", background="white")
+heightMinLabel = tk.Label(heightMinFrame, text="Min Height:", background="#87b5ff", font=('Segoe UI bold', '9'))
 heightMinLabel.grid(row=0, column=0)
 heightMinEntry = tk.Entry(heightMinFrame)
 heightMinEntry.grid(row=0, column=1)
 
 heightMaxFrame = tk.Frame(configurationFrame)
-heightMaxLabel = tk.Label(heightMaxFrame, text="Max Height:", background="white")
+heightMaxLabel = tk.Label(heightMaxFrame, text="Max Height:", background="#87b5ff", font=('Segoe UI bold', '9'))
 heightMaxLabel.grid(row=0, column=0)
 heightMaxEntry = tk.Entry(heightMaxFrame)
 heightMaxEntry.grid(row=0, column=1)
 
 distanceMinFrame = tk.Frame(configurationFrame)
-distanceMinLabel = tk.Label(distanceMinFrame, text="Min Distance:", background="white")
+distanceMinLabel = tk.Label(distanceMinFrame, text="Min Distance:", background="#87b5ff", font=('Segoe UI bold', '9'))
 distanceMinLabel.grid(row=0, column=0)
 distanceMinEntry = tk.Entry(distanceMinFrame)
 distanceMinEntry.grid(row=0, column=1)
 
 distanceMaxFrame = tk.Frame(configurationFrame)
-distanceMaxLabel = tk.Label(distanceMaxFrame, text="Max Distance:", background="white")
+distanceMaxLabel = tk.Label(distanceMaxFrame, text="Max Distance:", background="#87b5ff", font=('Segoe UI bold', '9'))
 distanceMaxLabel.grid(row=0, column=0)
 distanceMaxEntry = tk.Entry(distanceMaxFrame)
 distanceMaxEntry.grid(row=0, column=1)
 
 cOffsetMaxFrame = tk.Frame(configurationFrame)
-cOffsetMaxLabel = tk.Label(cOffsetMaxFrame, text="Max C-Offset:", background="white")
+cOffsetMaxLabel = tk.Label(cOffsetMaxFrame, text="Max C-Offset:", background="#87b5ff", font=('Segoe UI bold', '9'))
 cOffsetMaxLabel.grid(row=0, column=0)
 cOffsetMaxEntry = tk.Entry(cOffsetMaxFrame)
 cOffsetMaxEntry.grid(row=0, column=1)
 
 eyeAngleMaxFrame = tk.Frame(configurationFrame)
-eyeAngleMaxLabel = tk.Label(eyeAngleMaxFrame, text="Max Eye Angle:", background="white")
+eyeAngleMaxLabel = tk.Label(eyeAngleMaxFrame, text="Max Eye Angle:", background="#87b5ff", font=('Segoe UI bold', '9'))
 eyeAngleMaxLabel.grid(row=0, column=0)
 eyeAngleMaxEntry = tk.Entry(eyeAngleMaxFrame)
 eyeAngleMaxEntry.grid(row=0, column=1)
@@ -206,29 +229,47 @@ try:
     eyeAngleMaxEntry.insert(10, config.get('ergonomics', 'EYE_ANGLE_MAX'))
 except IOError:
     print("failed to read configuration file.")
-submitButton = tk.Button(configurationFrame, text="Submit Configuration", command=lambda: saveConfig(
-    heightMaxEntry.get(),
-    heightMinEntry.get(),
-    distanceMaxEntry.get(),
-    distanceMinEntry.get(),
-    cOffsetMaxEntry.get(),
-    eyeAngleMaxEntry.get()
-))
+submitButton = tk.Button(configurationFrame, text="Submit Configuration", bg="#183869", fg="white",
+                         command=lambda: saveConfig(
+                             heightMaxEntry.get(),
+                             heightMinEntry.get(),
+                             distanceMaxEntry.get(),
+                             distanceMinEntry.get(),
+                             cOffsetMaxEntry.get(),
+                             eyeAngleMaxEntry.get()
+                         ))
 submitButton.place(x=87, y=180)
 
 heightMaxFrame.place(x=16, y=0)
-heightMinFrame.place(x=18, y=30)
-distanceMaxFrame.place(x=7, y=60)
+heightMinFrame.place(x=19, y=30)
+distanceMaxFrame.place(x=6, y=60)
 distanceMinFrame.place(x=9, y=90)
-cOffsetMaxFrame.place(x=7, y=120)
+cOffsetMaxFrame.place(x=6, y=120)
 eyeAngleMaxFrame.place(x=0, y=150)
 
 configurationFrame.place(x=0, y=0)
 # ----------------------------------------------------------------------
+runFrame = tk.Frame(window, width=247, height=220, background="#87b5ff", highlightbackground="black",
+                    highlightthickness=2)
 
-runProgramButton = tk.Button(window, text="Run Program",
-                             font=('Arial', '14'), command=lambda: mainThreadRunner())
+runProgramButton = tk.Button(runFrame, text="Run Program",
+                             font=('Arial', '14'), bg="#183869", fg="white", command=lambda: mainThreadRunner())
+runProgramButton.place(x=55, y=85)
 
-runProgramButton.place(x=280, y=90)
+options = returnCameraIndexes()
+
+clicked = tk.StringVar()
+clicked.set(options[0])
+
+drop = tk.OptionMenu(runFrame, clicked, *options)
+drop.place(x=10, y=10)
+
+setWebcamButton = tk.Button(runFrame, text="Set Webcam", command=setWebcam)
+setWebcamButton.place(x=80, y=12)
+
+runFrame.place(x=219, y=0)
+
+# -------------------------------------------------------
+
 
 window.mainloop()
