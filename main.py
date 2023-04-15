@@ -1,11 +1,14 @@
 import cv2
 from cvzone.FaceMeshModule import FaceMeshDetector
-from win11toast import notify
 import time
 from configparser import ConfigParser
 import tkinter as tk
+import threading
+
 from user import User
 from notifications import Notifications
+from configGUI import configGUI
+from calculateFocalandHeight import calculate
 
 config = ConfigParser()
 
@@ -15,60 +18,29 @@ def getMidpoint(p1, p2):
     return midPoint
 
 
-def getSlope(p1, p2):
-    rise = (p2[1] - p1[1])
-    run = (p2[0] - p1[0])
-    return rise, run
+def runCalibration():
+    configQuestionLabel.destroy()
+    label.destroy()
 
+    ButtonFrame.destroy()
 
-def eligibleNotificationChecker(value, message):
-    if value >= 100:
-        notify(message)
-        return True
-    else:
-        return False
+    pleaseWaitLabel = tk.Label(window,
+                               text="The configuration stage will begin in 5 seconds.",
+                               font=('Arial', '14'))
+    pleaseWaitLabel.pack()
 
+    instructionsLabel1 = tk.Label(window,
+                                  text="Please position yourself directly in-front of the camera,",
+                                  font=('Arial', '14'))
+    instructionsLabel1.pack()
 
-def Average(lst):
-    return sum(lst) / len(lst)
+    instructionsLabel2 = tk.Label(window,
+                                  text="50cm away for the duration of the configuration.",
+                                  font=('Arial', '14'))
+    instructionsLabel2.pack()
 
-
-def calculateFocal():
-    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
-    # cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-    # cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-    detector = FaceMeshDetector(maxFaces=1)
-    focalLengths = []
-    heights = []
-
-    time_end = time.time() + 5
-    while time.time() < time_end:
-        success, img = cap.read()
-        img, faces = detector.findFaceMesh(img, draw=False)
-
-        if faces:
-            face = faces[0]
-            pointLeft = face[145]
-            pointRight = face[374]
-
-            centreOfEyes = getMidpoint(pointLeft, pointRight)
-
-            heights.append(centreOfEyes[1])
-            pixelWidth, _ = detector.findDistance(pointLeft, pointRight)
-            realWidth = 6.3
-
-            # Finding the Focal Length
-            userDistance = 50
-            f = (pixelWidth * userDistance) / realWidth
-            focalLengths.append(f)
-
-        # cv2.imshow("Determine Focal Length", img)
-        cv2.waitKey(1)
-    return Average(focalLengths), Average(heights)
-
-
-def runConfig():
-    focalLength, webcamHeight = calculateFocal()
+    time.sleep(5)
+    focalLength, webcamHeight = calculate()
 
     config.read('config.ini')
     config.set('main', 'FOCAL_LENGTH', str(round(focalLength)))
@@ -77,31 +49,43 @@ def runConfig():
     with open('config.ini', 'w') as f:
         config.write(f)
 
-    configQuestionLabel.destroy()
-    label.destroy()
-    label2.destroy()
-    yesNoButtonFrame.destroy()
+    pleaseWaitLabel.destroy()
+    instructionsLabel1.destroy()
+    instructionsLabel2.destroy()
 
     focalLengthLabel = tk.Label(window,
                                 text="The focal length of your current webcam is: " + str(round(focalLength)),
                                 font=('Arial', '14'))
     focalLengthLabel.pack()
     webcamYPosLabel = tk.Label(window,
-                               text="The theoretical y position of your Webcam is : " + str(round(webcamHeight) / 480),
+                               text="The theoretical y position of your Webcam is : " + str(
+                                   round(webcamHeight / 480, 3)),
                                font=('Arial', '14'))
     webcamYPosLabel.pack()
-
-    runButton = tk.Button(window, text="Run Program", font=('Arial', '14'), command=runMain)
+    runningThread = threading.Thread(target=runMain)
+    runButton = tk.Button(window, text="Run Program", font=('Arial', '14'), command=runningThread.start)
     runButton.pack()
 
 
 def runMain():
-    window.destroy()
+    for widgets in window.winfo_children():
+        widgets.destroy()
+
+    endHelpLabel = tk.Label(window,
+                            text="To pause the application press '^' ",
+                            font=('Arial', '14'))
+    endHelpLabel.pack()
+    runningThread = threading.Thread(target=runMain)
+    runButton2 = tk.Button(window, text="Run Program", font=('Arial', '14'), command=runningThread.start)
+    runButton2.pack()
+
     config.read('config.ini')
     focalLength = int(config.get('main', 'FOCAL_LENGTH'))
     webcamYPos = float(config.get('main', 'WEBCAM_Y_POS'))
 
     cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+    cap.set(cv2.CAP_PROP_FPS, 15)
+
     detector = FaceMeshDetector(maxFaces=1)
 
     user = User()
@@ -111,6 +95,9 @@ def runMain():
 
     while True:
         success, img = cap.read()
+        if not success:
+            break
+
         img, faces = detector.findFaceMesh(img, draw=True)
 
         if faces:
@@ -139,38 +126,43 @@ def runMain():
             notifications.centreOffsetTracker()
             notifications.eyeAngleTracker()
 
-        # cv2.imshow("Display User Data", img)
-        cv2.waitKey(1)
+        cv2.imshow("Display User Data", img)
+
+        if cv2.waitKey(1) & 0xFF == ord('^'):
+            break
+    cap.release()
+    cv2.destroyAllWindows()
 
 
 window = tk.Tk()
-window.geometry("600x600")
+window.geometry("600x200")
 window.title("PostureChecker")
 
 configQuestionLabel = tk.Label(window,
-                               text="Do you wish to complete a configuration phase?",
+                               text="Do you wish to complete a Calibration?",
                                font=('Arial', '14'))
 configQuestionLabel.pack()
 
 label = tk.Label(window,
-                 text="If yes is selected, the configuration will start instantly.",
+                 text="If yes, please sit directly in-front of the webcam, 50 cm away",
                  font=('Arial', '14'))
 label.pack()
 
-label2 = tk.Label(window,
-                  text="Please sit directly in-front of the webcam, 50 cm away",
-                  font=('Arial', '14'))
-label2.pack()
+ButtonFrame = tk.Frame(window)
+ButtonFrame.columnconfigure(0, weight=1)
 
-yesNoButtonFrame = tk.Frame(window)
-yesNoButtonFrame.columnconfigure(0, weight=1)
+calibrateThread = threading.Thread(target=runCalibration)
+calibrateButton = tk.Button(ButtonFrame, text="Calibrate", font=('Arial', '14'), command=calibrateThread.start)
+calibrateButton.grid(row=0, column=0)
 
-yesButton = tk.Button(yesNoButtonFrame, text="Yes", font=('Arial', '14'), command=runConfig)
-yesButton.grid(row=0, column=0)
+configThread = threading.Thread(target=configGUI)
+configButton = tk.Button(ButtonFrame, text="Configuration", font=('Arial', '14'), command=configThread.start)
+configButton.grid(row=0, column=1)
 
-noButton = tk.Button(yesNoButtonFrame, text="No", font=('Arial', '14'), command=runMain)
-noButton.grid(row=0, column=1)
+runningThread = threading.Thread(target=runMain)
+runProgramButton = tk.Button(ButtonFrame, text="Run Program", font=('Arial', '14'), command=runningThread.start)
+runProgramButton.grid(row=0, column=2)
 
-yesNoButtonFrame.pack()
+ButtonFrame.pack()
 
 window.mainloop()

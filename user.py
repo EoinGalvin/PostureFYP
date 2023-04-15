@@ -1,14 +1,17 @@
 import cvzone
 import numpy as np
 
+
 def getMidpoint(p1, p2):
     midPoint = [(p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2]
     return midPoint
+
 
 def getSlope(p1, p2):
     rise = (p2[1] - p1[1])
     run = (p2[0] - p1[0])
     return rise, run
+
 
 class User:
     centreOffset = None
