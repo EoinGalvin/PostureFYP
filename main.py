@@ -98,7 +98,7 @@ def runMain():
         if not success:
             break
 
-        img, faces = detector.findFaceMesh(img, draw=True)
+        img, faces = detector.findFaceMesh(img, draw=False)
 
         if faces:
             face = faces[0]

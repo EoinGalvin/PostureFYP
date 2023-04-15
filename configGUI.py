@@ -22,7 +22,7 @@ def saveConfig(heightMax, heightMin, distanceMax, distanceMin, cOffsetMax, eyeAn
 
 def configGUI():
     configWindow = tk.Tk()
-    configWindow.geometry("400x400")
+    configWindow.geometry("250x220")
     configWindow.title("Configuration")
 
     heightMinFrame = tk.Frame(configWindow)

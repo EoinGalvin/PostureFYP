@@ -40,7 +40,7 @@ class Notifications:
             self.C_OFFSET_MAX = int(config.get('ergonomics', 'C_OFFSET_MAX'))
             self.EYE_ANGLE_MAX = int(config.get('ergonomics', 'EYE_ANGLE_MAX'))
         except IOError:
-            print("failed to read configuration file.")
+            print("failed to read configuration file. Default values will be used")
 
         if user is not None:
             self.user = user
