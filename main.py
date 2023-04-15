@@ -12,34 +12,15 @@ from calculateFocalandHeight import calculate
 
 config = ConfigParser()
 
+configThread = threading.Thread(target=configGUI)
 
-def getMidpoint(p1, p2):
-    midPoint = [(p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2]
-    return midPoint
+
+def threadRunner(thread):
+    if not thread.is_alive():
+        thread.start()
 
 
 def runCalibration():
-    configQuestionLabel.destroy()
-    label.destroy()
-
-    ButtonFrame.destroy()
-
-    pleaseWaitLabel = tk.Label(window,
-                               text="The configuration stage will begin in 5 seconds.",
-                               font=('Arial', '14'))
-    pleaseWaitLabel.pack()
-
-    instructionsLabel1 = tk.Label(window,
-                                  text="Please position yourself directly in-front of the camera,",
-                                  font=('Arial', '14'))
-    instructionsLabel1.pack()
-
-    instructionsLabel2 = tk.Label(window,
-                                  text="50cm away for the duration of the configuration.",
-                                  font=('Arial', '14'))
-    instructionsLabel2.pack()
-
-    time.sleep(5)
     focalLength, webcamHeight = calculate()
 
     config.read('config.ini')
@@ -49,22 +30,58 @@ def runCalibration():
     with open('config.ini', 'w') as f:
         config.write(f)
 
-    pleaseWaitLabel.destroy()
-    instructionsLabel1.destroy()
-    instructionsLabel2.destroy()
-
-    focalLengthLabel = tk.Label(window,
+    calibrationWindowConfirmation = tk.Tk()
+    calibrationWindowConfirmation.geometry("500x80")
+    calibrationWindowConfirmation.title("Calibration Confirmation")
+    focalLengthLabel = tk.Label(calibrationWindowConfirmation,
                                 text="The focal length of your current webcam is: " + str(round(focalLength)),
                                 font=('Arial', '14'))
     focalLengthLabel.pack()
-    webcamYPosLabel = tk.Label(window,
+    webcamYPosLabel = tk.Label(calibrationWindowConfirmation,
                                text="The theoretical y position of your Webcam is : " + str(
                                    round(webcamHeight / 480, 3)),
                                font=('Arial', '14'))
     webcamYPosLabel.pack()
-    runningThread = threading.Thread(target=runMain)
-    runButton = tk.Button(window, text="Run Program", font=('Arial', '14'), command=runningThread.start)
-    runButton.pack()
+
+    calibrationWindowConfirmation.mainloop()
+
+
+runCalibrationThread = threading.Thread(target=runCalibration)
+
+
+def getMidpoint(p1, p2):
+    midPoint = [(p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2]
+    return midPoint
+
+
+def runCalibrationWindow():
+    calibrationWindow = tk.Tk()
+    calibrationWindow.geometry("600x200")
+    calibrationWindow.title("PostureChecker")
+
+    pleaseWaitLabel = tk.Label(calibrationWindow,
+                               text="Calibrate Webcam",
+                               font=('Arial', '14'))
+    pleaseWaitLabel.pack()
+
+    instructionsLabel1 = tk.Label(calibrationWindow,
+                                  text="Please position yourself directly in-front of the camera,",
+                                  font=('Arial', '14'))
+    instructionsLabel1.pack()
+
+    instructionsLabel2 = tk.Label(calibrationWindow,
+                                  text="50cm away for the duration of the configuration.",
+                                  font=('Arial', '14'))
+    instructionsLabel2.pack()
+
+    calibrateButton = tk.Button(calibrationWindow, text="Calibrate", font=('Arial', '14'),
+                                command=lambda: threadRunner(runCalibrationThread))
+    calibrateButton.pack()
+
+    calibrationWindow.mainloop()
+
+
+calibrateThread = threading.Thread(target=runCalibrationWindow)
 
 
 def runMain():
@@ -134,8 +151,10 @@ def runMain():
     cv2.destroyAllWindows()
 
 
+runningThread = threading.Thread(target=runMain)
+
 window = tk.Tk()
-window.geometry("600x200")
+window.geometry("600x150")
 window.title("PostureChecker")
 
 configQuestionLabel = tk.Label(window,
@@ -151,16 +170,21 @@ label.pack()
 ButtonFrame = tk.Frame(window)
 ButtonFrame.columnconfigure(0, weight=1)
 
-calibrateThread = threading.Thread(target=runCalibration)
-calibrateButton = tk.Button(ButtonFrame, text="Calibrate", font=('Arial', '14'), command=calibrateThread.start)
+calibrateButton = tk.Button(ButtonFrame,
+                            text="Calibrate",
+                            font=('Arial', '14'),
+                            command=lambda: threadRunner(calibrateThread))
+
+configButton = tk.Button(ButtonFrame, text="Configuration",
+                         font=('Arial', '14'),
+                         command=lambda: threadRunner(configThread))
+
+runProgramButton = tk.Button(ButtonFrame, text="Run Program",
+                             font=('Arial', '14'),
+                             command=lambda: threadRunner(runningThread))
+
 calibrateButton.grid(row=0, column=0)
-
-configThread = threading.Thread(target=configGUI)
-configButton = tk.Button(ButtonFrame, text="Configuration", font=('Arial', '14'), command=configThread.start)
 configButton.grid(row=0, column=1)
-
-runningThread = threading.Thread(target=runMain)
-runProgramButton = tk.Button(ButtonFrame, text="Run Program", font=('Arial', '14'), command=runningThread.start)
 runProgramButton.grid(row=0, column=2)
 
 ButtonFrame.pack()
