@@ -3,10 +3,16 @@ from cvzone.FaceMeshModule import FaceMeshDetector
 from configparser import ConfigParser
 import tkinter as tk
 import threading
+import numpy as np
+import os
 
 from user import User
 from notifications import Notifications
-from calibration import calculate
+
+from calibration import calibrateWithDistortion
+from calibration import calculateWithoutDistortion
+
+from distortionCalibration import calibrateDistortion
 
 config = ConfigParser()
 
@@ -29,13 +35,22 @@ def returnCameraIndexes():
 
 
 def mainThreadRunner():
-    runningThread = threading.Thread(target=runMain)
-    runningThread.start()
+    if os.path.isfile('calibration.pkl') and os.path.isfile('dist.pkl'):
+        runningThread = threading.Thread(target=runMain)
+        runningThread.start()
+    else:
+        runningThread = threading.Thread(target=runMainNoCalibration)
+        runningThread.start()
 
 
 def calibrationThreadRunner():
     runCalibrationThread = threading.Thread(target=runCalibration)
     runCalibrationThread.start()
+
+
+def distortionThreadRunner():
+    runDistortionThread = threading.Thread(target=lambda: calibrateDistortion(webcamIndex))
+    runDistortionThread.start()
 
 
 def getMidpoint(p1, p2):
@@ -60,7 +75,71 @@ def saveConfig(heightMax, heightMin, distanceMax, distanceMin, cOffsetMax, eyeAn
 
 
 def runMain():
-    
+    config.read('config.ini')
+    focalLength = int(config.get('main', 'FOCAL_LENGTH'))
+    webcamYPos = float(config.get('main', 'WEBCAM_Y_POS'))
+
+    cap = cv2.VideoCapture(webcamIndex, cv2.CAP_DSHOW)
+    cap.set(cv2.CAP_PROP_FPS, 15)
+
+    cameraMatrix = np.load('cameraMatrix.pkl', allow_pickle=True)
+    dist = np.load('dist.pkl', allow_pickle=True)
+
+    detector = FaceMeshDetector(maxFaces=1)
+
+    user = User()
+    notifications = Notifications(user)
+
+    realDistanceBetweenEyes = 6.3
+
+    while True:
+        success, img = cap.read()
+
+        h, w = img.shape[:2]
+        newCameraMatrix, roi = cv2.getOptimalNewCameraMatrix(cameraMatrix, dist, (w, h), 1, (w, h))
+        dst = cv2.undistort(img, cameraMatrix, dist, None, newCameraMatrix)
+
+        if not success:
+            break
+
+        dst, faces = detector.findFaceMesh(dst, draw=True)
+
+        if faces:
+            face = faces[0]
+            leftEye = face[145]
+            rightEye = face[374]
+
+            centreOfEyes = getMidpoint(leftEye, rightEye)
+            pixelToRealRatio = detector.findDistance(leftEye, rightEye)[0] / realDistanceBetweenEyes
+            webcamLevelApproximation = dst.shape[0] * webcamYPos
+            pixelDistanceBetweenEyes = detector.findDistance(leftEye, rightEye)
+
+            user.setHeight(webcamLevelApproximation, centreOfEyes, pixelToRealRatio)
+            user.setDistance(pixelDistanceBetweenEyes, realDistanceBetweenEyes, focalLength)
+            user.setCentreYOffset(leftEye, rightEye, dst, pixelToRealRatio)
+            user.setEyeAngle(leftEye, rightEye)
+
+            user.displayUserInformation(dst)
+
+            notifications.heightTrackerHigh()
+            notifications.heightTrackerLow()
+
+            notifications.distanceTrackerClose()
+            notifications.distanceTrackerFar()
+
+            notifications.centreOffsetTracker()
+            notifications.eyeAngleTracker()
+
+        # cv2.imshow("Display User Data", img)
+        cv2.imshow("Display User Data (Calibrated)", dst)
+
+        if cv2.waitKey(1) & 0xFF == ord('^'):
+            break
+    cap.release()
+    cv2.destroyAllWindows()
+
+
+def runMainNoCalibration():
     config.read('config.ini')
     focalLength = int(config.get('main', 'FOCAL_LENGTH'))
     webcamYPos = float(config.get('main', 'WEBCAM_Y_POS'))
@@ -117,7 +196,10 @@ def runMain():
 
 
 def runCalibration():
-    focalLength, webcamHeight = calculate(webcamIndex)
+    if os.path.isfile('calibration.pkl') and os.path.isfile('dist.pkl'):
+        focalLength, webcamHeight = calculateWithoutDistortion(webcamIndex)
+    else:
+        focalLength, webcamHeight = calibrateWithDistortion(webcamIndex)
 
     config.read('config.ini')
     config.set('main', 'FOCAL_LENGTH', str(round(focalLength)))
@@ -148,8 +230,8 @@ def setWebcam():
 
 
 window = tk.Tk()
-window.configure(background="white")
-window.geometry("466x345")
+window.configure(background="white",)
+window.geometry("466x384")
 window.title("PostureChecker")
 
 # ---------------------------------------------------------------------
@@ -169,7 +251,7 @@ instructionsLabel1 = tk.Label(calibrationFrame,
 instructionsLabel1.pack()
 
 instructionsLabel2 = tk.Label(calibrationFrame,
-                              text="50cm away for the duration of the configuration.",
+                              text="30cm away for the duration of the configuration.",
                               font=('Arial', '14'),
                               background="#87b5ff")
 instructionsLabel2.pack()
@@ -178,7 +260,14 @@ calibrateButton = tk.Button(calibrationFrame, text="Calibrate", font=('Arial', '
                             command=lambda: calibrationThreadRunner())
 calibrateButton.pack()
 
+distortionButton = tk.Button(calibrationFrame, text="Distortion calibration", font=('Arial', '14'), bg="#183869",
+                             fg="white",
+                             command=lambda: distortionThreadRunner())
+
+distortionButton.pack()
+
 calibrationFrame.place(x=0, y=218)
+
 # ---------------------------------------------------------------------
 configurationFrame = tk.Frame(window, width=220, height=220, background="#87b5ff", highlightbackground="black",
                               highlightthickness=2)
@@ -259,6 +348,7 @@ runProgramButton.place(x=55, y=85)
 options = returnCameraIndexes()
 
 clicked = tk.StringVar()
+
 clicked.set(options[0])
 
 drop = tk.OptionMenu(runFrame, clicked, *options)

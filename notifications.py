@@ -6,7 +6,7 @@ config = ConfigParser()
 
 def eligibleNotificationChecker(value, message):
     if value >= 150:
-        notify(message)
+        notify(body =message, title="Posture Notification")
         return True
     else:
         return False
@@ -36,7 +36,7 @@ class Notifications:
             self.HEIGHT_MAX = int(config.get('ergonomics', 'HEIGHT_MAX'))
             self.HEIGHT_MIN = int(config.get('ergonomics', 'HEIGHT_MIN'))
             self.DISTANCE_MAX = int(config.get('ergonomics', 'DISTANCE_MAX'))
-            self.DISTANCE_MAX = int(config.get('ergonomics', 'DISTANCE_MIN'))
+            self.DISTANCE_MIN = int(config.get('ergonomics', 'DISTANCE_MIN'))
             self.C_OFFSET_MAX = int(config.get('ergonomics', 'C_OFFSET_MAX'))
             self.EYE_ANGLE_MAX = int(config.get('ergonomics', 'EYE_ANGLE_MAX'))
         except IOError:
