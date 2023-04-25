@@ -226,7 +226,7 @@ def runCalibration():
 
 def setWebcam():
     global webcamIndex
-    webcamIndex = clicked.get()
+    webcamIndex = int(clicked.get())
 
 
 window = tk.Tk()
