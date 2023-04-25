@@ -6,9 +6,15 @@ import numpy as np
 import cv2 as cv
 import glob
 import pickle
-
+import os
+from win11toast import notify
 
 def calibrateDistortion(webcamIndex):
+
+    if os.path.isdir('images') == False:
+        print("creating image folder")
+        os.mkdir('images')
+
     cap = cv.VideoCapture(webcamIndex, cv.CAP_DSHOW)
 
     num = 0
@@ -52,34 +58,37 @@ def calibrateDistortion(webcamIndex):
     objpoints = []  # 3d point in real world space
     imgpoints = []  # 2d points in image plane.
 
-    images = glob.glob('images/*.png')
+    if len(os.listdir('images')) != 0:
+        images = glob.glob('images/*.png')
 
-    for image in images:
+        for image in images:
 
-        img = cv.imread(image)
-        gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+            img = cv.imread(image)
+            gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
 
-        # Find the chess board corners
-        ret, corners = cv.findChessboardCorners(gray, chessboardSize, None)
+            # Find the chess board corners
+            ret, corners = cv.findChessboardCorners(gray, chessboardSize, None)
 
-        # If found, add object points, image points (after refining them)
-        if ret == True:
-            objpoints.append(objp)
-            corners2 = cv.cornerSubPix(gray, corners, (11, 11), (-1, -1), criteria)
-            imgpoints.append(corners)
+            # If found, add object points, image points (after refining them)
+            if ret == True:
+                objpoints.append(objp)
+                corners2 = cv.cornerSubPix(gray, corners, (11, 11), (-1, -1), criteria)
+                imgpoints.append(corners)
 
-            # Draw and display the corners
-            cv.drawChessboardCorners(img, chessboardSize, corners2, ret)
-            cv.imshow('img', img)
-            cv.waitKey(1000)
+                # Draw and display the corners
+                cv.drawChessboardCorners(img, chessboardSize, corners2, ret)
+                cv.imshow('img', img)
+                cv.waitKey(1000)
 
-    cv.destroyAllWindows()
+        cv.destroyAllWindows()
 
-    # ############# CALIBRATION #######################################################
+        # ############# CALIBRATION #######################################################
 
-    ret, cameraMatrix, dist, rvecs, tvecs = cv.calibrateCamera(objpoints, imgpoints, frameSize, None, None)
+        ret, cameraMatrix, dist, rvecs, tvecs = cv.calibrateCamera(objpoints, imgpoints, frameSize, None, None)
 
-    # Save the camera calibration result for later use (we won't worry about rvecs / tvecs)
-    pickle.dump((cameraMatrix, dist), open("calibration.pkl", "wb"))
-    pickle.dump(cameraMatrix, open("cameraMatrix.pkl", "wb"))
-    pickle.dump(dist, open("dist.pkl", "wb"))
+        # Save the camera calibration result for later use (we won't worry about rvecs / tvecs)
+        pickle.dump((cameraMatrix, dist), open("calibration.pkl", "wb"))
+        pickle.dump(cameraMatrix, open("cameraMatrix.pkl", "wb"))
+        pickle.dump(dist, open("dist.pkl", "wb"))
+    else:
+        notify("No images")
