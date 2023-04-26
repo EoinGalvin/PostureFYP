@@ -67,6 +67,21 @@ def saveConfig(heightMax, heightMin, distanceMax, distanceMin, cOffsetMax, eyeAn
         config.set('ergonomics', 'DISTANCE_MIN', distanceMin)
         config.set('ergonomics', 'C_OFFSET_MAX', cOffsetMax)
         config.set('ergonomics', 'EYE_ANGLE_MAX', eyeAngleMax)
+
+        heightMaxEntry.delete(0, 'end')
+        heightMinEntry.delete(0, 'end')
+        distanceMaxEntry.delete(0, 'end')
+        distanceMinEntry.delete(0, 'end')
+        cOffsetMaxEntry.delete(0, 'end')
+        eyeAngleMaxEntry.delete(0, 'end')
+
+        heightMaxEntry.insert(10, config.get('ergonomics', 'HEIGHT_MAX'))
+        heightMinEntry.insert(10, config.get('ergonomics', 'HEIGHT_MIN'))
+        distanceMaxEntry.insert(10, config.get('ergonomics', 'DISTANCE_MAX'))
+        distanceMinEntry.insert(10, config.get('ergonomics', 'DISTANCE_MIN'))
+        cOffsetMaxEntry.insert(10, config.get('ergonomics', 'C_OFFSET_MAX'))
+        eyeAngleMaxEntry.insert(10, config.get('ergonomics', 'EYE_ANGLE_MAX'))
+
     except IOError:
         print("failed to save configuration.")
 
@@ -328,6 +343,11 @@ submitButton = tk.Button(configurationFrame, text="Submit Configuration", bg="#1
                              eyeAngleMaxEntry.get()
                          ))
 submitButton.place(x=87, y=180)
+
+resetButton = tk.Button(configurationFrame, text="Reset", bg="#183869", fg="white",
+                        command=lambda: saveConfig(str(0), str(-7), str(74), str(40), str(4), str(8)))
+
+resetButton.place(x=20, y=180)
 
 heightMaxFrame.place(x=16, y=0)
 heightMinFrame.place(x=19, y=30)
